@@ -1,6 +1,9 @@
 package enrolment
 
+import dcb.append
 import dcb.testing.given
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -49,6 +52,21 @@ class PostgresEnrolmentTest {
         ).against(store).whenever {
             subscribeStudentToCourse(grace, history)
         }.expectRejection("Course c1 is full")
+    }
+
+    @Test
+    fun `course availability can be asked just in time`() {
+        store.append(
+            CourseDefined(history, "History", capacity = 2),
+            StudentRegistered(ada, "Ada"),
+            StudentSubscribedToCourse(ada, history),
+        )
+
+        val view = store.availabilityOf(history)
+        assertTrue(view.defined)
+        assertEquals("History", view.title)
+        assertEquals(1, view.seatsTaken)
+        assertTrue(view.open)
     }
 
     @Test

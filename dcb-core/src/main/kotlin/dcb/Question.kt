@@ -65,3 +65,16 @@ fun <S> question(
     about: Set<Subject>,
     build: QuestionBuilder<S>.() -> Unit,
 ): Question<S> = QuestionBuilder(initial, about).apply(build).build()
+
+/** Same as [question]; prefer this name on the read side. */
+fun <S> projection(
+    initial: S,
+    about: About,
+    build: QuestionBuilder<S>.() -> Unit,
+): Question<S> = question(initial, about, build)
+
+fun <S> projection(
+    initial: S,
+    about: Set<Subject>,
+    build: QuestionBuilder<S>.() -> Unit,
+): Question<S> = question(initial, about, build)

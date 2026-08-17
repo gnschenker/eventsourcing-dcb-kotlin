@@ -24,7 +24,7 @@ The official minimum store API is two calls: `read(query)` and `append(facts, co
 ## Modules
 
 ```
-dcb-core        facts, questions, decision DSL, in-memory store, Given/When/Then, projector
+dcb-core        facts, questions, decision DSL, in-memory store, Given/When/Then, ad-hoc projections, projector
 dcb-postgres    JDBC event store, JSON codec, tag table, checkpoints
 enrolment       course subscriptions — the DCB hello-world, in business language
 ```
@@ -231,21 +231,53 @@ Appends run in a `SERIALIZABLE` transaction: check the condition, insert the fac
 
 Each `read` / `append` opens a JDBC connection. There is no pool in this PoC. That is fine for correctness tests; it dominates micro-benchmarks.
 
-## Projectors
+## Projections
 
-The same `Question` used to decide can build a read model.
+A projection is the same thing as a decision question: which facts to load, and how they fold into state. The difference is when it runs.
+
+| Kind | When it is built | This repo |
+|---|---|---|
+| **Ad-hoc** | At query time, from the event store | done |
+| **Synchronous** | In the same transaction as the append | later |
+| **Asynchronous** | Catch-up after the fact, checkpointed | later (`Projector` is a start) |
+
+### Ad-hoc (just in time)
+
+Nothing is stored. Each query reads the matching facts and folds them now.
 
 ```kotlin
-val projector = FoldingProjector(
-    name = "seats-taken-c1",
-    store = store,
-    checkpoints = InMemoryCheckpointStore(), // or PostgresCheckpointStore
-    question = seatsTaken(course),
-)
-val seats = projector.catchUp()
+val seats = store.ask(seatsTaken(history))
 ```
 
-`Projector` is the lower-level form: catch up from a checkpoint, call a handler for each new fact, save progress. `subscribe` is currently non-blocking (it yields the tail and stops). Poll `catchUp()` again when you need to.
+`project` also returns the store head at read time, so a later UI can wait for a slower projection:
+
+```kotlin
+val snapshot = store.project(seatsTaken(history))
+snapshot.state   // 1
+snapshot.asOf    // Position(5)
+```
+
+Several questions become one view with a single store read. Enrolment uses this for course availability:
+
+```kotlin
+fun EventStore.availabilityOf(course: CourseId): CourseAvailability = project {
+    val defined  by lookingAt { courseExists(course) }
+    val title    by lookingAt { courseTitle(course) }
+    val seats    by lookingAt { seatsTaken(course) }
+    val capacity by lookingAt { courseCapacity(course) }
+    answer {
+        CourseAvailability(defined, title, seats, capacity)
+    }
+}.state
+```
+
+`lookingAt` does not lock. Ad-hoc projections do not append.
+
+`projection { }` is an alias for `question { }` when you want the read-side word.
+
+### Catch-up (seed for async)
+
+`Projector` / `FoldingProjector` walk facts after a checkpoint and save progress. `subscribe` is currently non-blocking. This is the hook for async projections, not the ad-hoc path.
 
 ## Bench
 
@@ -265,7 +297,7 @@ This measures unpooled appends, a tagged read, and one conditional append. Do no
 - `after` is store head. Empty query as a lock means “conflict on any new event” — the library never sends that by accident. A decision that only `consider`s appends unconditionally.
 - One fact, several subjects. `StudentSubscribedToCourse` is about the student **and** the course.
 - Hot subjects (a popular course) are still a contended boundary. DCB does not remove that; it just stops you locking the rest of the world with it.
-- Snapshots, multi-tenancy, and a projection DSL are out of scope for this PoC.
+- Persistent snapshots, multi-tenancy, and sync/async projections are still ahead. Ad-hoc projections are in.
 
 ## Status
 
@@ -277,8 +309,9 @@ Working:
 - Given/When/Then against both stores
 - Tag-table access path
 - Catch-up projector and checkpoint table
+- Ad-hoc projections (`ask` / `project` / composed `lookingAt`)
 
-Obvious next steps: a connection pool, a concurrent overlapping-append test, and snapshots for fat tag histories.
+Obvious next steps: synchronous and asynchronous projections, a connection pool, a concurrent overlapping-append test, and snapshots for fat tag histories.
 
 ## References
 
