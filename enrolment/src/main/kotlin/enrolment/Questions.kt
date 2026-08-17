@@ -41,3 +41,17 @@ fun alreadySubscribed(student: StudentId, course: CourseId) = question(
     on<StudentSubscribedToCourse> { true }
     on<StudentUnsubscribedFromCourse> { false }
 }
+
+fun courseTitle(course: CourseId) = question(initial = null as String?, about = course) {
+    on<CourseDefined> { it.title }
+}
+
+fun coursesOf(student: StudentId) = question(initial = emptySet<CourseId>(), about = student) {
+    on<StudentSubscribedToCourse> { this + it.course }
+    on<StudentUnsubscribedFromCourse> { this - it.course }
+}
+
+fun studentsOn(course: CourseId) = question(initial = emptySet<StudentId>(), about = course) {
+    on<StudentSubscribedToCourse> { this + it.student }
+    on<StudentUnsubscribedFromCourse> { this - it.student }
+}
