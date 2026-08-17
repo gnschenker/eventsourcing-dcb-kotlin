@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: dcb
+      POSTGRES_PASSWORD: dcb
+      POSTGRES_DB: dcb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dcb -d dcb"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
