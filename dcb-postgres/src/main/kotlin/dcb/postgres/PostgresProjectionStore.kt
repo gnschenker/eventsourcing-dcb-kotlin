@@ -27,26 +27,24 @@ class PostgresProjectionStore<S>(
         }
     }
 
-    override fun load(name: String): Snapshot<S>? {
-        connect().use { connection ->
-            connection.prepareStatement(
-                "SELECT position, state FROM projections WHERE name = ?",
-            ).use { statement ->
-                statement.setString(1, name)
-                statement.executeQuery().use { rows ->
-                    if (!rows.next()) return null
-                    return Snapshot(
-                        state = decode(rows.getString("state")),
-                        asOf = Position(rows.getLong("position")),
-                    )
-                }
+    override fun load(name: String): Snapshot<S>? = withConnection { connection ->
+        connection.prepareStatement(
+            "SELECT position, state FROM projections WHERE name = ?",
+        ).use { statement ->
+            statement.setString(1, name)
+            statement.executeQuery().use { rows ->
+                if (!rows.next()) return@withConnection null
+                Snapshot(
+                    state = decode(rows.getString("state")),
+                    asOf = Position(rows.getLong("position")),
+                )
             }
         }
     }
 
     override fun save(name: String, snapshot: Snapshot<S>) {
         val asOf = snapshot.asOf ?: error("Cannot save a projection snapshot without a position")
-        connect().use { connection ->
+        withConnection { connection ->
             connection.prepareStatement(
                 """
                 INSERT INTO projections (name, position, state) VALUES (?, ?, ?::jsonb)
@@ -62,11 +60,17 @@ class PostgresProjectionStore<S>(
     }
 
     override fun delete(name: String) {
-        connect().use { connection ->
+        withConnection { connection ->
             connection.prepareStatement("DELETE FROM projections WHERE name = ?").use { statement ->
                 statement.setString(1, name)
                 statement.executeUpdate()
             }
         }
+    }
+
+    private fun <T> withConnection(block: (Connection) -> T): T {
+        val bound = PostgresSession.current()
+        if (bound != null) return block(bound)
+        return connect().use(block)
     }
 }

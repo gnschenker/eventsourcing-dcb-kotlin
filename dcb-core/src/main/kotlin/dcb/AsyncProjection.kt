@@ -97,23 +97,8 @@ class AsyncProjection<S>(
         }
     }
 
-    private fun catchUpUnlocked(): Snapshot<S> {
-        val previous = snapshots.load(name)
-        val after = previous?.asOf ?: Position(0)
-        val read = store.read(query, after)
-        val head = read.head ?: return previous ?: Snapshot(definition.initial, null)
-        var state = previous?.state ?: definition.initial
-        var applied = false
-        for (fact in read.facts) {
-            if (head.isBefore(fact.position)) continue
-            state = definition.apply(state, fact.payload)
-            applied = true
-        }
-        if (previous?.asOf == head && !applied) return previous
-        val snap = Snapshot(state, head)
-        snapshots.save(name, snap)
-        return snap
-    }
+    private fun catchUpUnlocked(): Snapshot<S> =
+        catchUpProjection(name, definition, snapshots, store)
 }
 
 fun <S> EventStore.projectAsync(

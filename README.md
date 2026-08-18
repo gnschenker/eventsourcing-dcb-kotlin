@@ -241,7 +241,7 @@ A projection is the same thing as a decision question: which facts to load, and 
 |---|---|---|
 | **Ad-hoc** | At query time, from the event store | done |
 | **Asynchronous** | After append, checkpointed, can run in the background | done |
-| **Synchronous** | In the same transaction as the append | later |
+| **Synchronous** | In the same transaction as the append | done |
 
 ### Ad-hoc (just in time)
 
@@ -310,7 +310,21 @@ Enrolment’s `courseDirectory()` is a global question (`about` is empty, so eve
 
 `InMemoryProjectionStore` is the default. `PostgresProjectionStore` keeps snapshots in a `projections` table; you pass encode/decode for the state type.
 
-`Projector` / `FoldingProjector` remain as a lower-level “call this handler for each new fact” catch-up. Prefer `projectAsync` when you want a resumable read model.
+### Sync (same transaction)
+
+A sync projection is installed with `projectSync`. It catch-up once, then folds every later append **before that append commits**. If the snapshot write fails, the facts roll back with it. After `handle` returns, `state` already includes the new facts — no `catchUpTo`.
+
+```kotlin
+val book = store.projectSync("policy-book", policyBook())
+store.handle(buyPolicy(quote, customer, policy))
+book.state[policy]   // already present
+```
+
+On Postgres the snapshot is written on the append connection (`LISTEN`/`NOTIFY` still fires after). Close the projection (`use` / `close()`) to detach it.
+
+Use sync when a screen must read the write it just made. Use async when a dashboard can lag. Use ad-hoc when there is no stored read model.
+
+`Projector` / `FoldingProjector` remain as a lower-level “call this handler for each new fact” catch-up.
 
 ## Bench
 
@@ -330,7 +344,7 @@ This measures unpooled appends, a tagged read, and one conditional append. Do no
 - `after` is store head. Empty query as a lock means “conflict on any new event” — the library never sends that by accident. A decision that only `consider`s appends unconditionally.
 - One fact, several subjects. `StudentSubscribedToCourse` is about the student **and** the course.
 - Hot subjects (a popular course) are still a contended boundary. DCB does not remove that; it just stops you locking the rest of the world with it.
-- Multi-tenancy and synchronous projections are still ahead.
+- Multi-tenancy is still ahead.
 
 ## Status
 
@@ -344,8 +358,9 @@ Working:
 - Catch-up projector and checkpoint table
 - Ad-hoc projections (`ask` / `project` / composed `lookingAt`)
 - Async projections (`projectAsync`, catch-up, live tail, persisted snapshots)
+- Sync projections (`projectSync`, same transaction as append)
 
-Obvious next steps: synchronous projections, a connection pool, and a concurrent overlapping-append test.
+Obvious next steps: a connection pool and a concurrent overlapping-append test.
 
 ## References
 

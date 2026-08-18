@@ -3,6 +3,7 @@ package dcb
 class InMemoryEventStore : EventStore {
     private val lock = Object()
     private val recorded = mutableListOf<RecordedFact>()
+    private val syncHandlers = mutableListOf<SyncHandler>()
 
     override fun read(query: Query, after: Position?): ReadResult = synchronized(lock) {
         val head = recorded.lastOrNull()?.position
@@ -17,18 +18,39 @@ class InMemoryEventStore : EventStore {
         if (condition != null && hasConflict(condition)) {
             throw ConcurrencyConflict("A conflicting fact was recorded")
         }
+        val start = recorded.size
         var last = recorded.lastOrNull()?.position?.value ?: 0L
-        for (fact in facts) {
-            last += 1
-            recorded += RecordedFact(
-                position = Position(last),
-                type = fact.type,
-                tags = fact.about,
-                payload = fact,
-            )
+        try {
+            val batch = mutableListOf<RecordedFact>()
+            for (fact in facts) {
+                last += 1
+                val recordedFact = RecordedFact(
+                    position = Position(last),
+                    type = fact.type,
+                    tags = fact.about,
+                    payload = fact,
+                )
+                recorded += recordedFact
+                batch += recordedFact
+            }
+            val head = Position(last)
+            for (handler in syncHandlers.toList()) {
+                handler.onAppend(batch, head)
+            }
+            lock.notifyAll()
+            head
+        } catch (error: Exception) {
+            while (recorded.size > start) recorded.removeAt(recorded.lastIndex)
+            throw error
         }
-        lock.notifyAll()
-        Position(last)
+    }
+
+    override fun attachSync(handler: SyncHandler) {
+        synchronized(lock) { syncHandlers += handler }
+    }
+
+    override fun detachSync(handler: SyncHandler) {
+        synchronized(lock) { syncHandlers -= handler }
     }
 
     override fun awaitAppend(after: Position?, timeoutMillis: Long): Boolean = synchronized(lock) {

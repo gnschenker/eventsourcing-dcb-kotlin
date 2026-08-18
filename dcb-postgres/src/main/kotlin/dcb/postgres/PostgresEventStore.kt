@@ -10,16 +10,19 @@ import dcb.Query
 import dcb.ReadResult
 import dcb.RecordedFact
 import dcb.Subject
+import dcb.SyncHandler
 import dcb.isBefore
 import dcb.type
 import java.sql.Connection
 import java.sql.SQLException
+import java.util.concurrent.CopyOnWriteArrayList
 import org.postgresql.PGConnection
 
 class PostgresEventStore(
     private val connect: () -> Connection,
     private val codec: FactCodec,
 ) : EventStore {
+    private val syncHandlers = CopyOnWriteArrayList<SyncHandler>()
 
     fun ensureSchema() {
         connect().use { connection ->
@@ -74,8 +77,15 @@ class PostgresEventStore(
                     throw ConcurrencyConflict("A conflicting fact was recorded")
                 }
                 var last = Position(0)
+                val batch = mutableListOf<RecordedFact>()
                 for (fact in facts) {
                     last = connection.insert(fact, codec)
+                    batch += RecordedFact(last, fact.type, fact.about, fact)
+                }
+                PostgresSession.bind(connection) {
+                    for (handler in syncHandlers) {
+                        handler.onAppend(batch, last)
+                    }
                 }
                 connection.createStatement().use { it.execute("NOTIFY dcb_append") }
                 connection.commit()
@@ -111,6 +121,14 @@ class PostgresEventStore(
                 if (notifications != null && notifications.isNotEmpty()) return true
             }
         }
+    }
+
+    override fun attachSync(handler: SyncHandler) {
+        syncHandlers += handler
+    }
+
+    override fun detachSync(handler: SyncHandler) {
+        syncHandlers -= handler
     }
 
     override fun subscribe(query: Query, after: Position): Sequence<RecordedFact> = sequence {
