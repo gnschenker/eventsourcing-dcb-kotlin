@@ -18,6 +18,7 @@ import java.sql.DriverManager
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 
 
@@ -69,6 +70,20 @@ class PostgresEventStoreTest {
         val result = store.read(Query.all())
         assertEquals(emptyList(), result.facts)
         assertNull(result.head)
+    }
+
+    @Test
+    fun `awaitAppend returns shortly after a later append`() {
+        val waiter = Thread {
+            store.awaitAppend(Position(0), 5_000)
+        }
+        waiter.start()
+        Thread.sleep(80)
+        val started = System.currentTimeMillis()
+        store.append(NotePosted("general", "ping"))
+        waiter.join(2_000)
+        assertTrue(!waiter.isAlive, "awaitAppend did not return after append")
+        assertTrue(System.currentTimeMillis() - started < 1_500, "awaitAppend ignored NOTIFY")
     }
 
     @Test

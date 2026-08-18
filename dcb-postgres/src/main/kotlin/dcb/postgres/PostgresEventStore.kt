@@ -10,9 +10,11 @@ import dcb.Query
 import dcb.ReadResult
 import dcb.RecordedFact
 import dcb.Subject
+import dcb.isBefore
 import dcb.type
 import java.sql.Connection
 import java.sql.SQLException
+import org.postgresql.PGConnection
 
 class PostgresEventStore(
     private val connect: () -> Connection,
@@ -47,9 +49,17 @@ class PostgresEventStore(
 
     override fun read(query: Query, after: Position?): ReadResult {
         connect().use { connection ->
-            val head = connection.storeHead()
-            val facts = connection.load(query, after)
-            return ReadResult(facts, head)
+            connection.autoCommit = false
+            connection.transactionIsolation = Connection.TRANSACTION_REPEATABLE_READ
+            try {
+                val head = connection.storeHead()
+                val facts = connection.load(query, after)
+                connection.commit()
+                return ReadResult(facts, head)
+            } catch (error: Exception) {
+                connection.rollbackQuietly()
+                throw error
+            }
         }
     }
 
@@ -67,6 +77,7 @@ class PostgresEventStore(
                 for (fact in facts) {
                     last = connection.insert(fact, codec)
                 }
+                connection.createStatement().use { it.execute("NOTIFY dcb_append") }
                 connection.commit()
                 return last
             } catch (error: SQLException) {
@@ -80,6 +91,24 @@ class PostgresEventStore(
             } catch (error: Exception) {
                 connection.rollbackQuietly()
                 throw error
+            }
+        }
+    }
+
+    override fun awaitAppend(after: Position?, timeoutMillis: Long): Boolean {
+        connect().use { connection ->
+            if (connection.hasNews(after)) return true
+            if (timeoutMillis <= 0) return false
+            connection.createStatement().use { it.execute("LISTEN dcb_append") }
+            val pg = connection.unwrap(PGConnection::class.java)
+            val deadline = System.currentTimeMillis() + timeoutMillis
+            while (true) {
+                if (connection.hasNews(after)) return true
+                val remaining = deadline - System.currentTimeMillis()
+                if (remaining <= 0) return connection.hasNews(after)
+                val wait = remaining.coerceAtMost(100).toInt()
+                val notifications = pg.getNotifications(wait)
+                if (notifications != null && notifications.isNotEmpty()) return true
             }
         }
     }
@@ -158,6 +187,11 @@ class PostgresEventStore(
                 return facts
             }
         }
+    }
+
+    private fun Connection.hasNews(after: Position?): Boolean {
+        val head = storeHead() ?: return false
+        return after.isBefore(head)
     }
 
     private fun Connection.storeHead(): Position? {

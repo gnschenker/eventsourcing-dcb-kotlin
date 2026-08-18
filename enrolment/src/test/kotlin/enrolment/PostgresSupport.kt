@@ -27,6 +27,7 @@ internal object PostgresSupport {
         connect().use { connection ->
             connection.createStatement().use { statement ->
                 statement.execute("TRUNCATE events RESTART IDENTITY CASCADE")
+                runCatching { statement.execute("TRUNCATE projections") }
             }
         }
     }

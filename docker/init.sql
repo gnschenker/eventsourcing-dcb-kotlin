@@ -15,3 +15,9 @@ CREATE TABLE IF NOT EXISTS checkpoints (
   name text PRIMARY KEY,
   position bigint NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS projections (
+  name text PRIMARY KEY,
+  position bigint NOT NULL,
+  state jsonb NOT NULL
+);

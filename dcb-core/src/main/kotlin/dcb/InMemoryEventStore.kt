@@ -1,7 +1,7 @@
 package dcb
 
 class InMemoryEventStore : EventStore {
-    private val lock = Any()
+    private val lock = Object()
     private val recorded = mutableListOf<RecordedFact>()
 
     override fun read(query: Query, after: Position?): ReadResult = synchronized(lock) {
@@ -27,7 +27,15 @@ class InMemoryEventStore : EventStore {
                 payload = fact,
             )
         }
+        lock.notifyAll()
         Position(last)
+    }
+
+    override fun awaitAppend(after: Position?, timeoutMillis: Long): Boolean = synchronized(lock) {
+        if (hasNews(after)) return true
+        if (timeoutMillis <= 0) return false
+        lock.wait(timeoutMillis)
+        hasNews(after)
     }
 
     override fun subscribe(query: Query, after: Position): Sequence<RecordedFact> = sequence {
@@ -47,7 +55,9 @@ class InMemoryEventStore : EventStore {
             condition.after.isBefore(rec.position) &&
                 condition.failIfEventsMatch.matches(rec)
         }
-}
 
-private fun Position?.isBefore(position: Position): Boolean =
-    this == null || position.value > value
+    private fun hasNews(after: Position?): Boolean {
+        val head = recorded.lastOrNull()?.position ?: return false
+        return after.isBefore(head)
+    }
+}
