@@ -20,12 +20,18 @@ internal fun <S> applyAppended(
     snapshots: ProjectionStore<S>,
     recorded: List<RecordedFact>,
     head: Position,
+    store: EventStore,
 ): Snapshot<S> {
     val previous = snapshots.load(name)
-    return persistIfChanged(name, definition, snapshots, previous, recorded, head)
+    val after = previous?.asOf?.value ?: 0L
+    val firstNew = recorded.minOfOrNull { it.position.value }
+    if (firstNew != null && firstNew > after + 1) {
+        catchUpProjection(name, definition, snapshots, store)
+    }
+    return persistIfChanged(name, definition, snapshots, snapshots.load(name), recorded, head)
 }
 
-private fun <S> persistIfChanged(
+internal fun <S> persistIfChanged(
     name: String,
     definition: Question<S>,
     snapshots: ProjectionStore<S>,

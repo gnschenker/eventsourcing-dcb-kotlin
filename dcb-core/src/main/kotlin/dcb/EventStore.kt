@@ -50,8 +50,10 @@ interface EventStore {
     fun detachSync(handler: SyncHandler) {}
 }
 
-fun interface SyncHandler {
+interface SyncHandler {
     fun onAppend(recorded: List<RecordedFact>, head: Position)
+
+    fun captureRollback(): () -> Unit = {}
 }
 
 fun EventStore.append(vararg facts: Fact, condition: AppendCondition? = null): Position =

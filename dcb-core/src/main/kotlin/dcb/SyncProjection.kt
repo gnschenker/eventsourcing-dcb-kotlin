@@ -21,13 +21,27 @@ class SyncProjection<S>(
 
     val asOf: Position? get() = snapshot().asOf
 
-    fun catchUp(): Snapshot<S> = synchronized(gate) {
-        catchUpProjection(name, definition, snapshots, store)
+    fun catchUp(): Snapshot<S> {
+        val hint = snapshots.load(name)
+        val read = store.read(Query.of(definition.queryItem), hint?.asOf ?: Position(0))
+        return synchronized(gate) {
+            val previous = snapshots.load(name)
+            val head = read.head ?: return@synchronized previous ?: Snapshot(definition.initial, null)
+            persistIfChanged(name, definition, snapshots, previous, read.facts, head)
+        }
     }
 
     override fun onAppend(recorded: List<RecordedFact>, head: Position) {
         synchronized(gate) {
-            applyAppended(name, definition, snapshots, recorded, head)
+            applyAppended(name, definition, snapshots, recorded, head, store)
+        }
+    }
+
+    override fun captureRollback(): () -> Unit {
+        val before = snapshots.load(name)
+        return {
+            if (before == null) snapshots.delete(name)
+            else snapshots.save(name, before)
         }
     }
 

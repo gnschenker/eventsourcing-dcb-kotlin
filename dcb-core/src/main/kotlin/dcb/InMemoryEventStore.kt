@@ -34,8 +34,15 @@ class InMemoryEventStore : EventStore {
                 batch += recordedFact
             }
             val head = Position(last)
-            for (handler in syncHandlers.toList()) {
-                handler.onAppend(batch, head)
+            val handlers = syncHandlers.toList()
+            val undos = handlers.map { it.captureRollback() }
+            try {
+                for (handler in handlers) {
+                    handler.onAppend(batch, head)
+                }
+            } catch (error: Exception) {
+                undos.asReversed().forEach { it() }
+                throw error
             }
             lock.notifyAll()
             head

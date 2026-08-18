@@ -7,6 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SyncProjectionTest {
@@ -65,6 +66,32 @@ class SyncProjectionTest {
         store.append(ItemPlaced("b2", "key"))
         assertFalse(projection.state)
         assertEquals(Position(1), projection.asOf)
+    }
+
+    @Test
+    fun `a later append fills facts missed while the projection was detached`() {
+        val store = InMemoryEventStore()
+        val projection = store.projectSync("box-b1", boxIsOpen("b1"))
+        store.append(BoxOpened("b1"))
+        projection.close()
+        store.append(BoxOpened("b2"))
+        store.attachSync(projection)
+        store.append(BoxClosed("b1"))
+        assertFalse(projection.state)
+        assertEquals(Position(3), projection.asOf)
+    }
+
+    @Test
+    fun `a failing sibling projection rolls back earlier snapshots`() {
+        val store = InMemoryEventStore()
+        val open = store.projectSync("box-b1", boxIsOpen("b1"))
+        store.projectSync("boom", exploding())
+        assertFailsWith<IllegalStateException> {
+            store.append(BoxOpened("b1"), Boom())
+        }
+        assertTrue(store.read(Query.all()).facts.isEmpty())
+        assertFalse(open.state)
+        assertNull(open.asOf)
     }
 
     @Test
