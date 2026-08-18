@@ -103,6 +103,24 @@ class AsyncProjectionTest {
     }
 
     @Test
+    fun `facts ahead of the reported head are not applied until the next catch-up`() {
+        val racing = RacingStore()
+        val opened = RecordedFact(Position(2), "BoxOpened", subjects(Subject("box:b1")), BoxOpened("b1"))
+        racing.head = Position(1)
+        racing.facts = listOf(opened)
+
+        val projection = racing.projectAsync("box-b1", boxIsOpen("b1"))
+        val first = projection.catchUp()
+        assertFalse(first.state)
+        assertEquals(Position(1), first.asOf)
+
+        racing.head = Position(2)
+        val second = projection.catchUp()
+        assertTrue(second.state)
+        assertEquals(Position(2), second.asOf)
+    }
+
+    @Test
     fun `an empty store has no snapshot position`() {
         val projection = InMemoryEventStore().projectAsync("box-b1", boxIsOpen("b1"))
         val snap = projection.catchUp()
@@ -114,4 +132,17 @@ class AsyncProjectionTest {
 private fun boxIsOpen(box: String) = question(initial = false, about = Subject("box:$box")) {
     on<BoxOpened> { true }
     on<BoxClosed> { false }
+}
+
+private class RacingStore : EventStore {
+    var facts: List<RecordedFact> = emptyList()
+    var head: Position? = null
+
+    override fun read(query: Query, after: Position?): ReadResult = ReadResult(facts, head)
+
+    override fun append(facts: List<Fact>, condition: AppendCondition?): Position =
+        error("not used")
+
+    override fun subscribe(query: Query, after: Position): Sequence<RecordedFact> =
+        emptySequence()
 }

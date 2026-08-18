@@ -16,6 +16,8 @@ class AsyncProjection<S>(
 
     @Volatile
     private var running = false
+
+    @Volatile
     private var worker: Thread? = null
 
     val query: Query get() = Query.of(definition.queryItem)
@@ -53,7 +55,7 @@ class AsyncProjection<S>(
 
     fun start(pollMillis: Long = 50): AutoCloseable {
         synchronized(gate) {
-            check(worker == null) { "Projection '$name' is already running" }
+            check(worker?.isAlive != true) { "Projection '$name' is already running" }
             running = true
             worker = Thread(
                 {
@@ -64,6 +66,15 @@ class AsyncProjection<S>(
                             store.awaitAppend(snap.asOf, pollMillis)
                         } catch (_: InterruptedException) {
                             break
+                        } catch (_: Exception) {
+                            if (!running) break
+                            try {
+                                store.awaitAppend(asOf, pollMillis)
+                            } catch (_: InterruptedException) {
+                                break
+                            } catch (_: Exception) {
+                                Thread.sleep(pollMillis.coerceAtLeast(1))
+                            }
                         }
                     }
                 },
@@ -78,21 +89,27 @@ class AsyncProjection<S>(
 
     fun stop() {
         running = false
-        worker?.interrupt()
-        worker?.join(1_000)
-        synchronized(gate) { worker = null }
+        val thread = worker
+        thread?.interrupt()
+        thread?.join(5_000)
+        synchronized(gate) {
+            if (worker === thread && thread?.isAlive != true) worker = null
+        }
     }
 
     private fun catchUpUnlocked(): Snapshot<S> {
         val previous = snapshots.load(name)
         val after = previous?.asOf ?: Position(0)
         val read = store.read(query, after)
-        var state = previous?.state ?: definition.initial
-        for (fact in read.facts) {
-            state = definition.apply(state, fact.payload)
-        }
         val head = read.head ?: return previous ?: Snapshot(definition.initial, null)
-        if (previous?.asOf == head && read.facts.isEmpty()) return previous
+        var state = previous?.state ?: definition.initial
+        var applied = false
+        for (fact in read.facts) {
+            if (head.isBefore(fact.position)) continue
+            state = definition.apply(state, fact.payload)
+            applied = true
+        }
+        if (previous?.asOf == head && !applied) return previous
         val snap = Snapshot(state, head)
         snapshots.save(name, snap)
         return snap

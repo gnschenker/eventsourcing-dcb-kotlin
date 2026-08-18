@@ -64,11 +64,15 @@ class PostgresAsyncProjectionTest {
     @Test
     fun `a running postgres directory waits for notify`() {
         val directory = store.projectAsync("course-directory", courseDirectory(), snapshots)
-        directory.start(pollMillis = 200).use {
-            store.append(CourseDefined(history, "History", 5))
-            val snap = directory.catchUpTo(Position(1), timeoutMillis = 5_000)
-            assertEquals("History", snap.state[history]!!.title)
+        val waiter = Thread {
+            directory.catchUpTo(Position(1), timeoutMillis = 5_000)
         }
+        waiter.start()
+        Thread.sleep(80)
+        store.append(CourseDefined(history, "History", 5))
+        waiter.join(3_000)
+        assertTrue(!waiter.isAlive, "catchUpTo did not return after append")
+        assertEquals("History", directory.state[history]!!.title)
     }
 
     companion object {

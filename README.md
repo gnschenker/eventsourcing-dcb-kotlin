@@ -288,7 +288,8 @@ directory.state[history]?.seatsTaken
 `catchUpTo(position)` waits until the projection has seen that position — the usual “do not show a stale page after a command” hook:
 
 ```kotlin
-store.handle(subscribeStudentToCourse(ada, history))
+val outcome = store.handle(subscribeStudentToCourse(ada, history))
+val position = (outcome as Outcome.Accepted).position!!
 directory.catchUpTo(position)
 ```
 

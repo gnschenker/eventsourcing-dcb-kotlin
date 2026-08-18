@@ -49,9 +49,17 @@ class PostgresEventStore(
 
     override fun read(query: Query, after: Position?): ReadResult {
         connect().use { connection ->
-            val head = connection.storeHead()
-            val facts = connection.load(query, after)
-            return ReadResult(facts, head)
+            connection.autoCommit = false
+            connection.transactionIsolation = Connection.TRANSACTION_REPEATABLE_READ
+            try {
+                val head = connection.storeHead()
+                val facts = connection.load(query, after)
+                connection.commit()
+                return ReadResult(facts, head)
+            } catch (error: Exception) {
+                connection.rollbackQuietly()
+                throw error
+            }
         }
     }
 
@@ -69,8 +77,8 @@ class PostgresEventStore(
                 for (fact in facts) {
                     last = connection.insert(fact, codec)
                 }
-                connection.commit()
                 connection.createStatement().use { it.execute("NOTIFY dcb_append") }
+                connection.commit()
                 return last
             } catch (error: SQLException) {
                 connection.rollbackQuietly()
@@ -98,7 +106,7 @@ class PostgresEventStore(
                 if (connection.hasNews(after)) return true
                 val remaining = deadline - System.currentTimeMillis()
                 if (remaining <= 0) return connection.hasNews(after)
-                val wait = remaining.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                val wait = remaining.coerceAtMost(100).toInt()
                 val notifications = pg.getNotifications(wait)
                 if (notifications != null && notifications.isNotEmpty()) return true
             }
