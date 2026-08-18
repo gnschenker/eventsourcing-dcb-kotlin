@@ -33,9 +33,22 @@ interface EventStore {
     fun append(facts: List<Fact>, condition: AppendCondition? = null): Position
 
     fun subscribe(query: Query, after: Position): Sequence<RecordedFact>
+
+    /**
+     * Block until a fact may have been appended after [after], or [timeoutMillis] elapses.
+     * Returns true if the caller should read again. The default implementation polls.
+     */
+    fun awaitAppend(after: Position?, timeoutMillis: Long): Boolean {
+        val wait = timeoutMillis.coerceIn(1, 50)
+        Thread.sleep(wait)
+        return true
+    }
 }
 
 fun EventStore.append(vararg facts: Fact, condition: AppendCondition? = null): Position =
     append(facts.toList(), condition)
 
 fun EventStore.handle(decision: PreparedDecision): Outcome = decision.run(this)
+
+fun Position?.isBefore(other: Position): Boolean =
+    this == null || other.value > value

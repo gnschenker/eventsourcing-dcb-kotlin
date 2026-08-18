@@ -24,8 +24,8 @@ The official minimum store API is two calls: `read(query)` and `append(facts, co
 ## Modules
 
 ```
-dcb-core        facts, questions, decision DSL, in-memory store, Given/When/Then, ad-hoc projections, projector
-dcb-postgres    JDBC event store, JSON codec, tag table, checkpoints
+dcb-core        facts, questions, decision DSL, in-memory store, Given/When/Then, ad-hoc and async projections
+dcb-postgres    JDBC event store, JSON codec, tag table, checkpoints, projection snapshots
 enrolment       course subscriptions — the DCB hello-world, in business language
 ```
 
@@ -238,8 +238,8 @@ A projection is the same thing as a decision question: which facts to load, and 
 | Kind | When it is built | This repo |
 |---|---|---|
 | **Ad-hoc** | At query time, from the event store | done |
+| **Asynchronous** | After append, checkpointed, can run in the background | done |
 | **Synchronous** | In the same transaction as the append | later |
-| **Asynchronous** | Catch-up after the fact, checkpointed | later (`Projector` is a start) |
 
 ### Ad-hoc (just in time)
 
@@ -275,9 +275,39 @@ fun EventStore.availabilityOf(course: CourseId): CourseAvailability = project {
 
 `projection { }` is an alias for `question { }` when you want the read-side word.
 
-### Catch-up (seed for async)
+### Async (after the fact)
 
-`Projector` / `FoldingProjector` walk facts after a checkpoint and save progress. `subscribe` is currently non-blocking. This is the hook for async projections, not the ad-hoc path.
+An async projection has a name, a question, and a [ProjectionStore](dcb-core/src/main/kotlin/dcb/ProjectionStore.kt). It reads facts after the last saved store head, folds them, and writes **state and head together**. A new process with the same name continues from that snapshot.
+
+```kotlin
+val directory = store.projectAsync("course-directory", courseDirectory())
+directory.catchUp()
+directory.state[history]?.seatsTaken
+```
+
+`catchUpTo(position)` waits until the projection has seen that position — the usual “do not show a stale page after a command” hook:
+
+```kotlin
+store.handle(subscribeStudentToCourse(ada, history))
+directory.catchUpTo(position)
+```
+
+`start()` runs catch-up in the background. In-memory waits on the store’s monitor; Postgres uses `LISTEN` / `NOTIFY dcb_append`, with a poll timeout so a missed notify still recovers.
+
+```kotlin
+directory.start(pollMillis = 50).use {
+    store.append(CourseDefined(history, "History", 8))
+    directory.catchUpTo(Position(1))
+}
+```
+
+Enrolment’s `courseDirectory()` is a global question (`about` is empty, so every course fact matches). That is the right shape for a persistent read model. Per-course ad-hoc views stay on `ask` / `availabilityOf`.
+
+`rebuild()` discards the snapshot and folds the whole history again.
+
+`InMemoryProjectionStore` is the default. `PostgresProjectionStore` keeps snapshots in a `projections` table; you pass encode/decode for the state type.
+
+`Projector` / `FoldingProjector` remain as a lower-level “call this handler for each new fact” catch-up. Prefer `projectAsync` when you want a resumable read model.
 
 ## Bench
 
@@ -297,7 +327,7 @@ This measures unpooled appends, a tagged read, and one conditional append. Do no
 - `after` is store head. Empty query as a lock means “conflict on any new event” — the library never sends that by accident. A decision that only `consider`s appends unconditionally.
 - One fact, several subjects. `StudentSubscribedToCourse` is about the student **and** the course.
 - Hot subjects (a popular course) are still a contended boundary. DCB does not remove that; it just stops you locking the rest of the world with it.
-- Persistent snapshots, multi-tenancy, and sync/async projections are still ahead. Ad-hoc projections are in.
+- Multi-tenancy and synchronous projections are still ahead.
 
 ## Status
 
@@ -310,8 +340,9 @@ Working:
 - Tag-table access path
 - Catch-up projector and checkpoint table
 - Ad-hoc projections (`ask` / `project` / composed `lookingAt`)
+- Async projections (`projectAsync`, catch-up, live tail, persisted snapshots)
 
-Obvious next steps: synchronous and asynchronous projections, a connection pool, a concurrent overlapping-append test, and snapshots for fat tag histories.
+Obvious next steps: synchronous projections, a connection pool, and a concurrent overlapping-append test.
 
 ## References
 
