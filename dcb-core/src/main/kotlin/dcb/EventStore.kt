@@ -43,6 +43,17 @@ interface EventStore {
         Thread.sleep(wait)
         return true
     }
+
+    /** Called from the append transaction with the facts just recorded. */
+    fun attachSync(handler: SyncHandler) {}
+
+    fun detachSync(handler: SyncHandler) {}
+}
+
+interface SyncHandler {
+    fun onAppend(recorded: List<RecordedFact>, head: Position)
+
+    fun captureRollback(): () -> Unit = {}
 }
 
 fun EventStore.append(vararg facts: Fact, condition: AppendCondition? = null): Position =

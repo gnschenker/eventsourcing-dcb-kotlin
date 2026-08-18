@@ -5,6 +5,7 @@ import dcb.Outcome
 import dcb.append
 import dcb.handle
 import dcb.projectAsync
+import dcb.projectSync
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -52,5 +53,14 @@ class AsyncBookTest {
             book.catchUpTo(position)
             assertTrue(book.state[p1] != null)
         }
+    }
+
+    @Test
+    fun `a sync book includes the purchase as soon as buy returns`() {
+        val store = InMemoryEventStore()
+        val book = store.projectSync("policy-book", policyBook())
+        store.append(*pricedQuote())
+        store.handle(buyPolicy(q1, ada, p1))
+        assertEquals(ada, book.state[p1]?.customer)
     }
 }
