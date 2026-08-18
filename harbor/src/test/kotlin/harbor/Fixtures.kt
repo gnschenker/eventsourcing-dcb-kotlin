@@ -20,3 +20,22 @@ internal fun catalog(capacity: Int = 100): Array<Fact> = arrayOf(
 
 internal fun openQuote(customer: CustomerId = ada, quote: QuoteId = q1): Array<Fact> =
     catalog() + JourneyStarted(quote, customer)
+
+internal fun pricedQuote(
+    customer: CustomerId = ada,
+    quote: QuoteId = q1,
+    tobacco: Boolean = false,
+    riders: Set<RiderCode> = emptySet(),
+    promo: Boolean = false,
+    capacity: Int = 100,
+): Array<Fact> {
+    val coverage = CoverageChosen(quote, 20, 500_000)
+    val applicant = ApplicantDescribed(quote, customer, 42, tobacco, Sex.Female)
+    val extra = riders.sumOf { riderExtra(it) }
+    val monthly = harborRateCard().monthly(20, 500_000, tobacco)!! + extra
+    return catalog(capacity) + JourneyStarted(quote, customer) + coverage + applicant +
+        riders.map { RiderAdded(quote, it) } +
+        QuotePriced(quote, HarborTerm, monthly, cardVersion = 1) +
+        BeneficiaryNamed(quote, "Sam Lee") +
+        listOfNotNull(if (promo) PromoApplied(quote, Spring) else null)
+}
