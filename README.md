@@ -31,7 +31,7 @@ enrolment       course subscriptions — the DCB hello-world, in business langua
 
 `enrolment` depends on `dcb-core` only. Persistence is an adapter. Tests can run the same scenarios against memory or Postgres.
 
-A second sample — a term-life sales journey from offer screen to Buy — is specified in [docs/term-life-sales-journey.html](docs/term-life-sales-journey.html). It is written to use every library capability; the module itself is not implemented yet.
+A second sample — a term-life sales journey from offer screen to Buy — is specified in [docs/term-life-sales-journey.html](docs/term-life-sales-journey.html) and implemented in the `harbor` module.
 
 Dependencies are deliberately few: Kotlin, JUnit 5, the PostgreSQL JDBC driver, and kotlinx.serialization. No Spring, Exposed, Arrow, or Testcontainers.
 
