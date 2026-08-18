@@ -17,5 +17,6 @@ fun harborFactCodec() = jsonFactCodec {
     register(QuotePriced.serializer())
     register(BeneficiaryNamed.serializer())
     register(PromoApplied.serializer())
+    register(PromoRemoved.serializer())
     register(PolicyIssued.serializer())
 }

@@ -14,8 +14,47 @@ class CoverageAndRidersTest {
     @Test
     fun `30 years is offered, 15 years is not`() {
         given(*openQuote()).whenever {
+            chooseCoverage(q1, 30, 250_000)
+        }.expect(CoverageChosen(q1, 30, 250_000))
+
+        given(*openQuote()).whenever {
             chooseCoverage(q1, 15, 250_000)
         }.expectRejection("Harbor Term is not offered for 15 years")
+    }
+
+    @Test
+    fun `a tobacco user cannot describe themselves at $1,000,000`() {
+        given(*openQuote(), CoverageChosen(q1, 20, 1_000_000)).whenever {
+            describeApplicant(q1, ada, age = 40, tobacco = true, sex = Sex.Female)
+        }.expectRejection("Tobacco users can choose up to \$500,000 in this sample")
+    }
+
+    @Test
+    fun `long view is refused when the applicant is too old for waiver`() {
+        given(
+            *openQuote(),
+            ApplicantDescribed(q1, ada, age = 57, tobacco = false, sex = Sex.Male),
+        ).whenever {
+            pickPackage(q1, PackageKind.LongView)
+        }.expectRejection("Waiver of premium is available up to age 55")
+    }
+
+    @Test
+    fun `picking essential removes leftover family riders`() {
+        given(
+            *openQuote(),
+            PackagePicked(q1, PackageKind.Family),
+            CoverageChosen(q1, 20, 500_000),
+            RiderAdded(q1, AccidentalDeath),
+            RiderAdded(q1, ChildrensTerm),
+        ).whenever {
+            pickPackage(q1, PackageKind.Essential)
+        }.expect(
+            PackagePicked(q1, PackageKind.Essential),
+            CoverageChosen(q1, 10, 250_000),
+            RiderRemoved(q1, AccidentalDeath),
+            RiderRemoved(q1, ChildrensTerm),
+        )
     }
 
     @Test

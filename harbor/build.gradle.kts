@@ -17,5 +17,5 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
-    mustRunAfter(":enrolment:test")
+    mustRunAfter(":dcb-postgres:test", ":enrolment:test")
 }

@@ -18,20 +18,26 @@ class BuyPolicyTest {
     }
 
     @Test
-    fun `a later rate card does not change a premium already recorded`() {
-        val first = harborRateCard(version = 1)
-        val priced = first.monthly(20, 250_000, false)!!
+    fun `buy is refused when the premium has not been reviewed`() {
         given(
-            ProductDefined(HarborTerm, "Harbor Term Life", HarborTerms, HarborFaces),
-            first,
-            JourneyStarted(q1, ada),
-            CoverageChosen(q1, 20, 250_000),
+            *openQuote(),
+            CoverageChosen(q1, 20, 500_000),
             ApplicantDescribed(q1, ada, 42, false, Sex.Female),
-            QuotePriced(q1, HarborTerm, priced, 1),
-            harborRateCard(version = 2),
+            BeneficiaryNamed(q1, "Sam Lee"),
         ).whenever {
-            startJourney(ada, q2)
-        }.expect(QuoteAbandoned(q1, ada), JourneyStarted(q2, ada))
+            buyPolicy(q1, ada, p1)
+        }.expectRejection("Review the premium before buying")
+    }
+
+    @Test
+    fun `a full promo can still be bought at list price`() {
+        val monthly = harborRateCard().monthly(20, 500_000, false)!!
+        given(
+            *pricedQuote(quote = q2, customer = grace, promo = true, capacity = 1),
+            PolicyIssued(p1, q1, ada, monthly = 28, campaign = Spring),
+        ).whenever {
+            buyPolicy(q2, grace, p2, campaign = null)
+        }.expect(PolicyIssued(p2, q2, grace, monthly))
     }
 
     @Test
@@ -94,5 +100,12 @@ class BuyPolicyTest {
         given(*openQuote()).whenever {
             applyPromo(q1)
         }.expect(PromoApplied(q1, Spring))
+    }
+
+    @Test
+    fun `a customer can drop Harbor Spring`() {
+        given(*openQuote(), PromoApplied(q1, Spring)).whenever {
+            removePromo(q1)
+        }.expect(PromoRemoved(q1, Spring))
     }
 }

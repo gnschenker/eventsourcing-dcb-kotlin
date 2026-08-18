@@ -78,6 +78,7 @@ fun beneficiaryOf(quote: QuoteId) = question(initial = null as BeneficiaryNamed?
 
 fun promoOn(quote: QuoteId) = question(initial = false, about = quote) {
     on<PromoApplied> { true }
+    on<PromoRemoved> { false }
 }
 
 fun policyExists(policy: PolicyId) = question(initial = false, about = policy) {

@@ -29,22 +29,27 @@ fun startJourney(customer: CustomerId, quote: QuoteId) = decision {
 
 fun pickPackage(quote: QuoteId, kind: PackageKind) = decision {
     val journey by requiring { journeyOf(quote) }
+    val selected by requiring { ridersOn(quote) }
+    val applicant by requiring { applicantOf(quote) }
     decide {
         unless(journey.isOpen) { "This quote is no longer open" }
+        val wanted = packageRiders(kind)
+        val face = packageFace(kind)
+        val blocked = wanted.firstOrNull { !riderAllowed(it, face, applicant) }
+        unless(blocked == null) {
+            riderRefusal(blocked!!, face, applicant)
+                ?: "A selected rider is not available with this coverage"
+        }
         then(PackagePicked(quote, kind))
         when (kind) {
             PackageKind.Essential -> then(CoverageChosen(quote, 10, 250_000))
-            PackageKind.Family -> then(
-                CoverageChosen(quote, 20, 500_000),
-                RiderAdded(quote, AccidentalDeath),
-                RiderAdded(quote, ChildrensTerm),
-            )
-            PackageKind.LongView -> then(
-                CoverageChosen(quote, 30, 500_000),
-                RiderAdded(quote, AccidentalDeath),
-                RiderAdded(quote, WaiverOfPremium),
-            )
+            PackageKind.Family -> then(CoverageChosen(quote, 20, 500_000))
+            PackageKind.LongView -> then(CoverageChosen(quote, 30, 500_000))
             PackageKind.Custom -> Unit
+        }
+        if (kind != PackageKind.Custom) {
+            for (rider in selected - wanted) then(RiderRemoved(quote, rider))
+            for (rider in wanted - selected) then(RiderAdded(quote, rider))
         }
     }
 }
@@ -105,12 +110,16 @@ fun describeApplicant(
 ) = decision {
     val journey by requiring { journeyOf(quote) }
     val riders by requiring { ridersOn(quote) }
+    val coverage by requiring { coverageOf(quote) }
     decide {
         unless(journey.isOpen) { "This quote is no longer open" }
         unless(journey.customer == customer) { "This quote is not yours" }
         unless(age in 18..60) { "Coverage is offered from age 18 to 60" }
         unless(WaiverOfPremium !in riders || age <= 55) {
             "Waiver of premium is available up to age 55"
+        }
+        unless(!tobacco || coverage?.face != 1_000_000) {
+            "Tobacco users can choose up to \$500,000 in this sample"
         }
         then(ApplicantDescribed(quote, customer, age, tobacco, sex))
     }
@@ -158,6 +167,16 @@ fun applyPromo(quote: QuoteId, campaign: CampaignId = Spring) = decision {
     }
 }
 
+fun removePromo(quote: QuoteId, campaign: CampaignId = Spring) = decision {
+    val journey by requiring { journeyOf(quote) }
+    val on by requiring { promoOn(quote) }
+    decide {
+        unless(journey.isOpen) { "This quote is no longer open" }
+        unless(on) { "Harbor Spring is not on this quote" }
+        then(PromoRemoved(quote, campaign))
+    }
+}
+
 fun buyPolicy(
     quote: QuoteId,
     customer: CustomerId,
@@ -169,9 +188,11 @@ fun buyPolicy(
     val applicant by requiring { applicantOf(quote) }
     val priced by requiring { latestPrice(quote) }
     val beneficiary by requiring { beneficiaryOf(quote) }
+    val riders by requiring { ridersOn(quote) }
     val inForce by requiring { inForceHarborPolicy(customer) }
     val policyTaken by requiring { policyExists(policy) }
     val promo by requiring { promoOn(quote) }
+    val takePromo = campaign != null
     val seats by requiring { campaignSeatsTaken(campaign ?: Spring) }
     val campaignDef by requiring { campaignOf(campaign ?: Spring) }
     decide {
@@ -182,18 +203,38 @@ fun buyPolicy(
         unless(beneficiary != null) { "Name a beneficiary" }
         unless(inForce == null) { "You already have a Harbor Term policy" }
         unless(!policyTaken) { "That policy number is already used" }
+        val chosen = coverage
+        val person = applicant
+        unless(person == null || person.age in 18..60) { "Coverage is offered from age 18 to 60" }
+        unless(person?.tobacco != true || (chosen?.face ?: 0) < 1_000_000) {
+            "Tobacco users can choose up to \$500,000 in this sample"
+        }
+        val blocked = riders.firstOrNull { !riderAllowed(it, chosen?.face, person) }
+        unless(blocked == null) {
+            riderRefusal(blocked!!, chosen?.face, person)
+                ?: "A selected rider is not available with this coverage"
+        }
+        val consumePromo = promo && takePromo
         val openCampaign = campaignDef
-        unless(!promo || openCampaign == null || seats < openCampaign.capacity) {
+        unless(!consumePromo || openCampaign != null) { "That promotion is not open" }
+        unless(!consumePromo || openCampaign == null || seats < openCampaign.capacity) {
             "Harbor Spring is fully subscribed"
         }
-        then(
-            PolicyIssued(
-                policy,
-                quote,
-                customer,
-                priced!!.monthly,
-                campaign.takeIf { promo },
-            ),
-        )
+        val monthly = priced?.monthly
+        if (monthly == null) return@decide
+        then(PolicyIssued(policy, quote, customer, monthly, campaign.takeIf { consumePromo }))
     }
+}
+
+private fun packageRiders(kind: PackageKind): Set<RiderCode> = when (kind) {
+    PackageKind.Essential -> emptySet()
+    PackageKind.Family -> setOf(AccidentalDeath, ChildrensTerm)
+    PackageKind.LongView -> setOf(AccidentalDeath, WaiverOfPremium)
+    PackageKind.Custom -> emptySet()
+}
+
+private fun packageFace(kind: PackageKind): Int? = when (kind) {
+    PackageKind.Essential -> 250_000
+    PackageKind.Family, PackageKind.LongView -> 500_000
+    PackageKind.Custom -> null
 }

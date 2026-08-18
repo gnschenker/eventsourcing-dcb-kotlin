@@ -142,6 +142,14 @@ data class PromoApplied(
 }
 
 @Serializable
+data class PromoRemoved(
+    val quote: QuoteId,
+    val campaign: CampaignId,
+) : Fact {
+    @Transient override val about = subjects(quote, campaign)
+}
+
+@Serializable
 data class PolicyIssued(
     val policy: PolicyId,
     val quote: QuoteId,
