@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Harbor Term Life — sales journey spec</title>
+  <style>
+    :root {
+      --ink: #1c1915;
+      --muted: #5c564c;
+      --line: #d8d0c4;
+      --paper: #f7f3ec;
+      --card: #fffcf7;
+      --accent: #8b3a2a;
+      --accent-soft: #f3e4dc;
+      --sea: #2a4a4a;
+      --sea-soft: #dce8e6;
+      --gold: #b8872a;
+      --ok: #2f5d3a;
+      --warn: #8a4b12;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font: 17px/1.55 "Iowan Old Style", "Palatino Linotype", Palatino, "Times New Roman", serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    header.hero {
+      padding: 3.5rem 1.5rem 2.5rem;
+      background:
+        linear-gradient(180deg, #ece4d6 0%, var(--paper) 100%);
+      border-bottom: 1px solid var(--line);
+    }
+    .wrap { max-width: 46rem; margin: 0 auto; padding: 0 1.5rem 5rem; }
+    header.hero .wrap { padding-bottom: 0; }
+    .kicker {
+      font: 600 0.78rem/1.3 ui-sans-serif, system-ui, sans-serif;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin: 0 0 0.6rem;
+    }
+    h1 {
+      font-size: clamp(2rem, 4vw, 2.7rem);
+      font-weight: 650;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin: 0 0 0.8rem;
+    }
+    .lede { font-size: 1.15rem; color: var(--muted); margin: 0 0 1.5rem; }
+    nav.toc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 1rem;
+      font: 600 0.82rem/1.3 ui-sans-serif, system-ui, sans-serif;
+    }
+    nav.toc a { color: var(--sea); text-decoration: none; border-bottom: 1px solid transparent; }
+    nav.toc a:hover { border-bottom-color: var(--sea); }
+    h2 {
+      font-size: 1.55rem;
+      margin: 3rem 0 0.8rem;
+      padding-top: 0.6rem;
+      border-top: 1px solid var(--line);
+    }
+    h3 { font-size: 1.15rem; margin: 1.8rem 0 0.5rem; }
+    h4 { font-size: 1rem; margin: 1.2rem 0 0.4rem; }
+    p, li { color: var(--ink); }
+    .muted { color: var(--muted); }
+    a { color: var(--accent); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+      background: var(--card);
+      margin: 0.8rem 0 1.2rem;
+    }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 0.5rem 0.6rem;
+      border-bottom: 1px solid var(--line);
+    }
+    th {
+      font: 600 0.75rem/1.3 ui-sans-serif, system-ui, sans-serif;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: #efe8dc;
+    }
+    code, .mono {
+      font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
+      font-size: 0.86em;
+    }
+    pre {
+      background: #221f1b;
+      color: #f0e6d6;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      font: 0.8rem/1.45 ui-monospace, "Cascadia Code", Menlo, monospace;
+      border-radius: 4px;
+    }
+    pre .c { color: #9a9080; }
+    pre .k { color: #d7a15e; }
+    pre .t { color: #8fbfb0; }
+    .note, .assume, .lib {
+      border-left: 4px solid var(--gold);
+      background: #fff8e8;
+      padding: 0.7rem 1rem;
+      margin: 1rem 0;
+    }
+    .lib { border-color: var(--sea); background: var(--sea-soft); }
+    .assume { border-color: var(--accent); background: var(--accent-soft); }
+    .screens {
+      display: grid;
+      gap: 0.7rem;
+      margin: 1rem 0 1.5rem;
+    }
+    .screen {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 0.85rem 1rem;
+    }
+    .screen .step {
+      font: 650 0.72rem/1 ui-sans-serif, system-ui, sans-serif;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .screen h3 { margin: 0.25rem 0 0.35rem; }
+    .journey {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin: 1rem 0 1.5rem;
+      font: 600 0.78rem/1.2 ui-sans-serif, system-ui, sans-serif;
+    }
+    .journey span {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 0.4rem 0.55rem;
+    }
+    .journey span.buy { background: var(--sea); color: #f4f8f7; border-color: var(--sea); }
+    .tag {
+      display: inline-block;
+      font: 650 0.7rem/1 ui-sans-serif, system-ui, sans-serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.15rem 0.4rem;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .tag.require { background: #ead7d2; }
+    .tag.consider { background: #e5efe6; color: var(--ok); }
+    .tag.adhoc { background: var(--sea-soft); color: var(--sea); }
+    .tag.async { background: #efe4c8; color: var(--warn); }
+    ul.tight li { margin: 0.2rem 0; }
+    footer {
+      margin-top: 3rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    @media print {
+      header.hero { background: none; }
+      pre { white-space: pre-wrap; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <p class="kicker">Sample application spec · DCB Kotlin library</p>
+      <h1>Harbor Term Life sales journey</h1>
+      <p class="lede">
+        A customer buys a simple term-life policy with optional riders.
+        This spec maps the screens, the facts we record, and how every
+        library capability is used — from the first offer until <em>Buy</em>.
+      </p>
+      <nav class="toc" aria-label="Contents">
+        <a href="#purpose">Purpose</a>
+        <a href="#assumptions">Assumptions</a>
+        <a href="#journey">Journey</a>
+        <a href="#subjects">Subjects</a>
+        <a href="#facts">Facts</a>
+        <a href="#screens">Screens</a>
+        <a href="#decisions">Decisions</a>
+        <a href="#projections">Projections</a>
+        <a href="#tests">Tests</a>
+        <a href="#module">Module</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <h2 id="purpose">1. Purpose</h2>
+    <p>
+      Enrolment already proves the library on a classroom example. This sample
+      is a second bounded context: a <strong>direct-to-consumer term-life quote
+      and bind</strong>. It is meant to be implemented as a sibling Gradle module
+      (<code>harbor</code>) that depends only on <code>dcb-core</code> for domain
+      code and on <code>dcb-postgres</code> for persistence tests.
+    </p>
+    <p>The app must exercise the whole library, not a subset:</p>
+    <table>
+      <thead>
+        <tr><th>Library piece</th><th>Where this sample uses it</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Facts + <code>about</code> / subjects</td>
+          <td>Every recorded change. Several facts are about more than one subject.</td>
+        </tr>
+        <tr>
+          <td><code>question</code> / <code>projection</code></td>
+          <td>Decision inputs and read models share the same definitions.</td>
+        </tr>
+        <tr>
+          <td><code>requiring</code> vs <code>considering</code></td>
+          <td>Quote mutations lock quote history; the published rate card is only considered.</td>
+        </tr>
+        <tr>
+          <td><code>decision</code> / <code>unless</code> / <code>then</code></td>
+          <td>One decision per customer action on a screen.</td>
+        </tr>
+        <tr>
+          <td><code>ConcurrencyConflict</code></td>
+          <td>Two tabs on the same quote, or two buyers taking the last promo seat.</td>
+        </tr>
+        <tr>
+          <td>Ad-hoc <code>ask</code> / <code>project { lookingAt }</code></td>
+          <td>Each screen is rebuilt just in time from the quote’s facts.</td>
+        </tr>
+        <tr>
+          <td>Async <code>projectAsync</code></td>
+          <td>A sales pipeline and an issued-policy book, checkpointed in Postgres.</td>
+        </tr>
+        <tr>
+          <td><code>catchUpTo</code></td>
+          <td>After <em>Buy</em>, the confirmation page waits for the pipeline to see the issue fact.</td>
+        </tr>
+        <tr>
+          <td>Postgres event store + tag table</td>
+          <td>Integration tests run the same Given/When/Then against Docker Postgres.</td>
+        </tr>
+        <tr>
+          <td>Given / When / Then</td>
+          <td>The acceptance spec below is the test list. An SME should be able to read it.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="lib">
+      Synchronous projections (fold in the same transaction as append) are
+      <strong>not</strong> in the library yet. This sample does not invent them.
+      Screens use ad-hoc reads; dashboards use async catch-up.
+    </p>
+
+    <h2 id="assumptions">2. Reasonable assumptions</h2>
+    <div class="assume">
+      These are product decisions for the sample, not claims about real insurance.
+      Keep them small enough that a weekend implementation can finish the happy path.
+    </div>
+    <ul>
+      <li><strong>Product.</strong> One product: Harbor Term Life. Level term, level premium, face amount paid on death during the term.</li>
+      <li><strong>Term.</strong> 10, 20, or 30 years.</li>
+      <li><strong>Face amounts.</strong> $100,000 · $250,000 · $500,000 · $1,000,000.</li>
+      <li><strong>Riders (optional, simple).</strong>
+        Accidental death (ADB, extra $ face on accidental death),
+        waiver of premium (premiums waived if the insured is disabled),
+        children’s term (flat $10,000 per child until age 25).
+      </li>
+      <li><strong>Eligibility.</strong> Age 18–60. Waiver only if age ≤ 55. Children’s term only if face ≥ $250,000. $1,000,000 face is not offered to tobacco users in this sample (simplified underwriting).</li>
+      <li><strong>Pricing.</strong> A published <em>rate card</em> (facts) gives monthly premium per term × face × tobacco. Each rider has a flat monthly extra. The quote stores the priced premium when it is calculated, so later rate-card edits do not silently change a quote the customer already saw.</li>
+      <li><strong>Promo.</strong> Campaign “Harbor Spring” has 100 discounted binds. Taking a promo seat is a contended DCB boundary, like a course filling up.</li>
+      <li><strong>One open quote per customer.</strong> Starting a new journey abandons the previous open quote. A customer may hold at most one in-force Harbor policy in this sample.</li>
+      <li><strong>No medical exam, no payment processor, no illustration PDF.</strong> “Buy” records that the customer confirmed the quote. Billing and underwriting casework are out of scope.</li>
+      <li><strong>Identity.</strong> The sample pretends the customer is already signed in. We are given a <code>CustomerId</code>.</li>
+    </ul>
+
+    <h2 id="journey">3. Journey map</h2>
+    <p>
+      The customer is led through six screens. Each screen is one command
+      (sometimes two). They can go back and change a previous choice until they
+      click <strong>Buy</strong>. After Buy the quote is bound and the journey ends.
+    </p>
+    <div class="journey" aria-label="Screen sequence">
+      <span>1 Offer</span>
+      <span>2 Coverage</span>
+      <span>3 Riders</span>
+      <span>4 About you</span>
+      <span>5 Review</span>
+      <span>6 Confirm</span>
+      <span class="buy">Buy</span>
+    </div>
+    <p>
+      Going back does not delete history. A later fact supersedes an earlier one
+      of the same kind (the question fold keeps the latest). That is how DCB
+      stays aggregate-free: there is no <code>Quote</code> entity to mutate, only
+      facts about the quote.
+    </p>
+
+    <h2 id="subjects">4. Subjects</h2>
+    <p>Tags the event store understands. Domain IDs implement <code>About</code>.</p>
+    <table>
+      <thead><tr><th>Id</th><th>Subject</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>CustomerId</code></td><td><code>customer:c17</code></td><td>The signed-in person.</td></tr>
+        <tr><td><code>QuoteId</code></td><td><code>quote:q9f3</code></td><td>This sales journey.</td></tr>
+        <tr><td><code>ProductId</code></td><td><code>product:harbor-term</code></td><td>The product definition and rate card.</td></tr>
+        <tr><td><code>CampaignId</code></td><td><code>campaign:spring</code></td><td>Limited promo inventory.</td></tr>
+        <tr><td><code>PolicyId</code></td><td><code>policy:p441</code></td><td>Created only at Buy.</td></tr>
+        <tr><td><code>RiderCode</code></td><td><code>rider:adb</code></td><td>A rider catalogue entry.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="facts">5. Facts</h2>
+    <p>
+      Stored type is the class simple name. <code>about</code> is the DCB tag set.
+      A fact that names two subjects is <em>one fact</em>, not two streams and a saga.
+    </p>
+    <table>
+      <thead><tr><th>Fact</th><th>About</th><th>When</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>ProductDefined</code></td>
+          <td>product</td>
+          <td>Seed. Name, allowed terms, allowed faces.</td>
+        </tr>
+        <tr>
+          <td><code>RateCardPublished</code></td>
+          <td>product</td>
+          <td>Seed / ops. Versioned table of monthly premiums.</td>
+        </tr>
+        <tr>
+          <td><code>RiderCatalogued</code></td>
+          <td>product, rider</td>
+          <td>Seed. Code, extra premium, eligibility notes.</td>
+        </tr>
+        <tr>
+          <td><code>CampaignOpened</code></td>
+          <td>campaign, product</td>
+          <td>Seed. Discount, capacity (100).</td>
+        </tr>
+        <tr>
+          <td><code>JourneyStarted</code></td>
+          <td>quote, customer</td>
+          <td>Customer lands on the offer screen. Opens the quote.</td>
+        </tr>
+        <tr>
+          <td><code>QuoteAbandoned</code></td>
+          <td>quote, customer</td>
+          <td>A newer journey for the same customer supersedes this one.</td>
+        </tr>
+        <tr>
+          <td><code>PackagePicked</code></td>
+          <td>quote</td>
+          <td>Offer screen. One of the three starter packages, or “build your own”.</td>
+        </tr>
+        <tr>
+          <td><code>CoverageChosen</code></td>
+          <td>quote</td>
+          <td>Term years + face amount.</td>
+        </tr>
+        <tr>
+          <td><code>RiderAdded</code> / <code>RiderRemoved</code></td>
+          <td>quote, rider</td>
+          <td>One rider change. Cross-tagged so we can ask “is ADB on this quote?” without loading the whole quote.</td>
+        </tr>
+        <tr>
+          <td><code>ApplicantDescribed</code></td>
+          <td>quote, customer</td>
+          <td>Age, tobacco, sex. Needed to price and to enforce eligibility.</td>
+        </tr>
+        <tr>
+          <td><code>QuotePriced</code></td>
+          <td>quote, product</td>
+          <td>Monthly premium and the rate-card version used. The number the customer saw.</td>
+        </tr>
+        <tr>
+          <td><code>BeneficiaryNamed</code></td>
+          <td>quote</td>
+          <td>Primary beneficiary name and share (100% in the sample).</td>
+        </tr>
+        <tr>
+          <td><code>PromoApplied</code></td>
+          <td>quote, campaign</td>
+          <td>Customer opted into Harbor Spring on the review screen.</td>
+        </tr>
+        <tr>
+          <td><code>PolicyIssued</code></td>
+          <td>policy, quote, customer, campaign?</td>
+          <td><em>Buy</em>. One fact binds the quote, creates the policy, and (if promo) takes a campaign seat.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      <code>PolicyIssued</code> is the DCB “one fact” moment: the quote is bound,
+      the customer now holds a policy, and the promo campaign has one fewer seat.
+      There is no saga and no compensating “un-reserve” event on the happy path.
+    </p>
+
+    <h2 id="screens">6. Screens</h2>
+    <div class="screens">
+      <article class="screen" id="s1">
+        <div class="step">Screen 1 · Offer</div>
+        <h3>Choose a starting point</h3>
+        <p>
+          Headline: “Protect the people who depend on you.” Three cards plus
+          “I’ll choose the details”:
+        </p>
+        <ul class="tight">
+          <li><strong>Essential</strong> — 10 years · $250,000 · no riders</li>
+          <li><strong>Family</strong> — 20 years · $500,000 · ADB + children’s term</li>
+          <li><strong>Long view</strong> — 30 years · $500,000 · ADB + waiver</li>
+        </ul>
+        <p>
+          First visit records <code>JourneyStarted</code>. Picking a card records
+          <code>PackagePicked</code> and the implied <code>CoverageChosen</code> /
+          rider facts in the same append (one decision, several facts).
+          “I’ll choose” only records <code>PackagePicked(custom)</code> and goes
+          to coverage.
+        </p>
+        <p>
+          <span class="tag adhoc">ad-hoc</span>
+          Rebuild: is there already an open quote for this customer?
+          If yes, offer “Resume” vs “Start over” (start-over abandons the old quote).
+        </p>
+      </article>
+
+      <article class="screen" id="s2">
+        <div class="step">Screen 2 · Coverage</div>
+        <h3>Term and amount</h3>
+        <p>
+          Two controls: term (10 / 20 / 30) and face (four amounts).
+          Helper text from the product definition (allowed combinations).
+          Changing coverage after riders exist may make a rider illegal;
+          the decision rejects with a sentence the UI can show
+          (“Children’s term needs at least $250,000 of coverage”).
+        </p>
+        <p><span class="tag require">requiring</span> quote history, product definition.
+          <span class="tag consider">considering</span> current rate card (to preview a premium, not to lock it).</p>
+      </article>
+
+      <article class="screen" id="s3">
+        <div class="step">Screen 3 · Riders</div>
+        <h3>Optional extras</h3>
+        <p>
+          Three toggles from the rider catalogue. Disabled toggles show why
+          (“Waiver is available up to age 55 — tell us your age on the next screen”
+          if age is still unknown; hard-reject if age is known and too high).
+        </p>
+        <p>
+          Each toggle is its own decision: <code>addRider</code> /
+          <code>removeRider</code>. That keeps the consistency boundary to
+          <em>this quote + this rider</em>, so adding ADB does not contend with
+          an unrelated quote adding waiver.
+        </p>
+      </article>
+
+      <article class="screen" id="s4">
+        <div class="step">Screen 4 · About you</div>
+        <h3>Who is being insured</h3>
+        <p>
+          Age, tobacco, legal sex (pricing class only). This is
+          <code>ApplicantDescribed</code>. After this fact, eligibility that
+          depends on age becomes enforceable. If waiver is already selected and
+          age is 57, the decision rejects until they remove the rider or correct
+          the age — we do not silently drop the rider.
+        </p>
+      </article>
+
+      <article class="screen" id="s5">
+        <div class="step">Screen 5 · Review</div>
+        <h3>The number they will pay</h3>
+        <p>
+          The screen always <em>re-prices</em> with the latest rate card
+          (<span class="tag consider">considering</span> the card) and then
+          records <code>QuotePriced</code> so the displayed premium is a fact.
+          Optional checkbox: apply Harbor Spring (5% off, limited seats).
+          That records <code>PromoApplied</code> but does <em>not</em> take a
+          seat yet — seats are taken at Buy, so browsing does not hoard inventory.
+        </p>
+        <p>
+          Ad-hoc view: coverage, riders, applicant, premium, promo flag.
+          This is a composed <code>project { lookingAt … answer }</code>.
+        </p>
+      </article>
+
+      <article class="screen" id="s6">
+        <div class="step">Screen 6 · Confirm and Buy</div>
+        <h3>Beneficiary, then bind</h3>
+        <p>
+          Name the primary beneficiary, then a single primary button:
+          <strong>Buy — $X / month</strong>. Copy restates term, face, riders,
+          and that coverage starts when we record the purchase (no medical exam
+          in this sample).
+        </p>
+        <p>
+          <code>buyPolicy</code> is the wide decision: quote must be complete and
+          still open, customer must not already hold Harbor, promo seat must
+          still exist if they opted in, eligibility must still hold.
+          On success: <code>PolicyIssued</code> (and the UI waits on
+          <code>catchUpTo</code> before showing the confirmation page).
+        </p>
+      </article>
+    </div>
+
+    <h2 id="decisions">7. Decisions</h2>
+    <p>
+      Each function below is a <code>decision { }</code>. Rejection text is a
+      sentence a screen can show. Commands never mention streams or aggregates.
+    </p>
+
+    <h3>7.1 Start or resume</h3>
+    <pre><span class="c">// Offer screen, first arrival or “Start over”</span>
+<span class="k">fun</span> startJourney(customer: CustomerId, quote: QuoteId) = decision {
+  <span class="k">val</span> already by <span class="t">requiring</span> { quoteExists(quote) }
+  <span class="k">val</span> open    by <span class="t">requiring</span> { openQuoteFor(customer) }
+  decide {
+    unless(!already) { <span class="c">"Quote $quote is already started"</span> }
+    <span class="c">// If they have an open quote, the same append abandons it.</span>
+    open?.let { <span class="k">then</span>(QuoteAbandoned(it, customer)) }
+    <span class="k">then</span>(JourneyStarted(quote, customer))
+  }
+}</pre>
+    <p>
+      <code>JourneyStarted</code> is about the quote <em>and</em> the customer.
+      Uniqueness of <code>quote</code> uses <code>requiring { quoteExists }</code>
+      with no prior matches (create). The customer’s open quote is a second
+      query item on the same decision — that is the dynamic boundary.
+    </p>
+
+    <h3>7.2 Pick a package</h3>
+    <p>
+      One decision, several facts. Family package appends coverage plus
+      <code>RiderAdded(adb)</code> and <code>RiderAdded(child)</code>.
+      Custom package appends only <code>PackagePicked</code>.
+    </p>
+
+    <h3>7.3 Choose coverage</h3>
+    <pre><span class="k">fun</span> chooseCoverage(quote: QuoteId, termYears: Int, face: Int) = decision {
+  <span class="k">val</span> journey  by <span class="t">requiring</span> { journeyOf(quote) }
+  <span class="k">val</span> product  by <span class="t">requiring</span> { productDefinition(HarborTerm) }
+  <span class="k">val</span> riders   by <span class="t">requiring</span> { ridersOn(quote) }
+  <span class="k">val</span> applicant by <span class="t">requiring</span> { applicantOf(quote) }
+  <span class="k">val</span> rates    by <span class="t">considering</span> { currentRateCard(HarborTerm) }
+  decide {
+    unless(journey.isOpen) { <span class="c">"This quote is no longer open"</span> }
+    unless(termYears in product.terms) { <span class="c">"Harbor Term is not offered for $termYears years"</span> }
+    unless(face in product.faces) { <span class="c">"Harbor Term is not offered at that amount"</span> }
+    unless(riders.all { it.allowed(termYears, face, applicant) }) {
+      <span class="c">"A selected rider is not available with this coverage"</span>
+    }
+    unless(applicant?.tobacco != true || face &lt; 1_000_000) {
+      <span class="c">"Tobacco users can choose up to $500,000 in this sample"</span>
+    }
+    <span class="k">then</span>(CoverageChosen(quote, termYears, face))
+  }
+}</pre>
+    <p>
+      The rate card is <span class="tag consider">considered</span>: we may show
+      an estimated premium, but a concurrent rate-card publish must not bounce
+      the coverage choice. Eligibility that the customer already asserted
+      (riders, tobacco) is <span class="tag require">required</span>.
+    </p>
+
+    <h3>7.4 Add or remove a rider</h3>
+    <p>
+      Boundary is <code>quote</code> + <code>rider</code>. Adding ADB on quote A
+      does not conflict with adding waiver on quote B. Adding ADB twice on the
+      same quote is rejected (“Accidental death is already on this quote”).
+    </p>
+
+    <h3>7.5 Describe the applicant</h3>
+    <p>
+      Requires the open journey and current riders. If waiver is selected and
+      age &gt; 55, reject. Does not lock the rate card.
+    </p>
+
+    <h3>7.6 Price the quote</h3>
+    <p>
+      Requires a complete quote (coverage + applicant). Considers the latest
+      <code>RateCardPublished</code>. Appends <code>QuotePriced(monthly, cardVersion)</code>.
+      Re-visiting review after a change simply prices again; the fold keeps the
+      latest price.
+    </p>
+
+    <h3>7.7 Buy</h3>
+    <pre><span class="k">fun</span> buyPolicy(
+  quote: QuoteId,
+  customer: CustomerId,
+  policy: PolicyId,
+  campaign: CampaignId? = CampaignId(<span class="c">"spring"</span>),
+) = decision {
+  <span class="k">val</span> journey   by <span class="t">requiring</span> { journeyOf(quote) }
+  <span class="k">val</span> coverage  by <span class="t">requiring</span> { coverageOf(quote) }
+  <span class="k">val</span> applicant by <span class="t">requiring</span> { applicantOf(quote) }
+  <span class="k">val</span> priced    by <span class="t">requiring</span> { latestPrice(quote) }
+  <span class="k">val</span> beneficiary by <span class="t">requiring</span> { beneficiaryOf(quote) }
+  <span class="k">val</span> inForce   by <span class="t">requiring</span> { inForceHarborPolicy(customer) }
+  <span class="k">val</span> policyTaken by <span class="t">requiring</span> { policyExists(policy) }
+  <span class="k">val</span> promo     by <span class="t">requiring</span> { promoOn(quote) }
+  <span class="k">val</span> seats     by <span class="t">requiring</span> { campaignSeatsTaken(campaign) }
+  <span class="k">val</span> campaignDef by <span class="t">requiring</span> { campaignOf(campaign) }
+  decide {
+    unless(journey.isOpen &amp;&amp; journey.customer == customer) { <span class="c">"This quote is not yours to buy"</span> }
+    unless(coverage != null) { <span class="c">"Choose a term and amount first"</span> }
+    unless(applicant != null) { <span class="c">"Tell us about the person being insured"</span> }
+    unless(priced != null) { <span class="c">"Review the premium before buying"</span> }
+    unless(beneficiary != null) { <span class="c">"Name a beneficiary"</span> }
+    unless(inForce == null) { <span class="c">"You already have a Harbor Term policy"</span> }
+    unless(!policyTaken) { <span class="c">"That policy number is already used"</span> }
+    unless(!promo || seats &lt; campaignDef.capacity) {
+      <span class="c">"Harbor Spring is fully subscribed"</span>
+    }
+    <span class="k">then</span>(PolicyIssued(policy, quote, customer, priced.monthly, campaign.takeIf { promo }))
+  }
+}</pre>
+    <p>
+      If two customers hit Buy on the last promo seat, one
+      <code>ConcurrencyConflict</code>s (or the seat check fails on retry) and
+      the UI drops the discount and offers full price. That is the same pattern
+      as a full course in enrolment, with a different glossary.
+    </p>
+
+    <h2 id="projections">8. Projections</h2>
+
+    <h3>8.1 Ad-hoc — each screen</h3>
+    <p>
+      Screens do not keep session state in a cookie blob. They ask the store.
+    </p>
+    <pre>fun EventStore.offerFor(customer: CustomerId): OfferScreen = project {
+  <span class="k">val</span> open    by lookingAt { openQuoteFor(customer) }
+  <span class="k">val</span> product by lookingAt { productDefinition(HarborTerm) }
+  answer { OfferScreen(openQuote = open, packages = product.packages) }
+}.state
+
+fun EventStore.reviewOf(quote: QuoteId): ReviewScreen = project {
+  <span class="k">val</span> coverage  by lookingAt { coverageOf(quote) }
+  <span class="k">val</span> riders    by lookingAt { ridersOn(quote) }
+  <span class="k">val</span> applicant by lookingAt { applicantOf(quote) }
+  <span class="k">val</span> price     by lookingAt { latestPrice(quote) }
+  <span class="k">val</span> promo     by lookingAt { promoOn(quote) }
+  answer { ReviewScreen(coverage, riders, applicant, price, promo) }
+}.state</pre>
+    <p>
+      After any command, the HTTP handler uses the accepted
+      <code>position</code> only if it must wait on an async view. The next
+      screen itself is ad-hoc and can be asked immediately from the event store
+      (same process, the facts are already committed).
+    </p>
+
+    <h3>8.2 Async — pipeline and book of business</h3>
+    <p>
+      Two named projections, empty <code>about</code> so they see every relevant
+      fact (same shape as enrolment’s <code>courseDirectory</code>).
+    </p>
+    <table>
+      <thead><tr><th>Name</th><th>State</th><th>Used for</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>sales-pipeline</code></td>
+          <td>Open quotes: step reached, age of quote, promo flag, last premium</td>
+          <td>Internal desk. “Where do people drop off?”</td>
+        </tr>
+        <tr>
+          <td><code>policy-book</code></td>
+          <td>Issued policies: customer, face, term, monthly, campaign</td>
+          <td>Confirmation wait, “my policy” page, promo remaining-seat badge</td>
+        </tr>
+      </tbody>
+    </table>
+    <pre><span class="k">val</span> pipeline = store.projectAsync(<span class="c">"sales-pipeline"</span>, salesPipeline(), snapshots)
+<span class="k">val</span> book     = store.projectAsync(<span class="c">"policy-book"</span>, policyBook(), snapshots)
+pipeline.start()
+book.start()
+
+<span class="c">// After Buy:</span>
+<span class="k">val</span> outcome = store.handle(buyPolicy(...))
+<span class="k">val</span> position = (outcome <span class="k">as</span> Outcome.Accepted).position!!
+book.catchUpTo(position)
+<span class="c">// now the confirmation page may read book.state[policy]</span></pre>
+    <p>
+      Snapshots live in Postgres (<code>PostgresProjectionStore</code>) so a
+      process restart continues from the last store head. <code>rebuild()</code>
+      is the ops hatch if a fold is ever patched.
+    </p>
+    <p>
+      Remaining promo seats for a banner can be either:
+      ad-hoc <code>ask(campaignSeatsTaken(spring))</code> on the review screen
+      (always exact), or the policy-book async view (fast, possibly a few
+      milliseconds behind). The spec uses ad-hoc on the Buy path (must be exact)
+      and the async book for the public “93 of 100 spring policies left” badge.
+    </p>
+
+    <h2 id="tests">9. Acceptance tests (Given / When / Then)</h2>
+    <p>These names are the test methods. An SME should be able to read them aloud.</p>
+    <pre><span class="c">// Offer</span>
+<span class="c">"a customer can start a journey"</span>
+<span class="c">"starting a second journey abandons the open quote"</span>
+<span class="c">"a quote id cannot be started twice"</span>
+
+<span class="c">// Coverage</span>
+<span class="c">"a customer can choose 20 years and $500,000"</span>
+<span class="c">"30 years is offered; 15 years is not"</span>
+<span class="c">"a tobacco user cannot choose $1,000,000"</span>
+<span class="c">"children's term cannot stay selected below $250,000"</span>
+
+<span class="c">// Riders</span>
+<span class="c">"accidental death can be added and removed"</span>
+<span class="c">"a rider cannot be added twice"</span>
+<span class="c">"waiver of premium is refused at age 57"</span>
+
+<span class="c">// Review / price</span>
+<span class="c">"review records the premium the customer was shown"</span>
+<span class="c">"a later rate card does not change a premium already recorded"</span>
+
+<span class="c">// Buy</span>
+<span class="c">"a complete quote can be bought"</span>
+<span class="c">"buy is refused when the beneficiary is missing"</span>
+<span class="c">"a customer cannot hold two Harbor policies"</span>
+<span class="c">"the last Harbor Spring seat can be taken only once"</span>
+<span class="c">"two buyers of the last seat: one binds, the other is told the promo is full"</span></pre>
+    <p>
+      The last case is the enrolment “course is full” test with different words.
+      Implement it twice: in-memory, and <code>.against(postgres)</code>.
+    </p>
+    <pre>given(
+  ProductDefined(HarborTerm, ...),
+  RateCardPublished(HarborTerm, version = 1, ...),
+  CampaignOpened(Spring, capacity = 1, discount = 0.05),
+  JourneyStarted(q1, ada),
+  <span class="c">/* ada’s complete quote + promo */</span>
+  JourneyStarted(q2, grace),
+  <span class="c">/* grace’s complete quote + promo */</span>
+  PolicyIssued(p1, q1, ada, monthly = 28, campaign = Spring),
+).whenever {
+  buyPolicy(q2, grace, p2, Spring)
+}.expectRejection(<span class="c">"Harbor Spring is fully subscribed"</span>)</pre>
+
+    <h2 id="module">10. Suggested module layout</h2>
+    <pre>harbor/
+  src/main/kotlin/harbor/
+    Ids.kt              CustomerId, QuoteId, PolicyId, ...
+    Facts.kt            the table in §5
+    Questions.kt        journeyOf, ridersOn, campaignSeatsTaken, ...
+    Decisions.kt        startJourney … buyPolicy
+    Views.kt            offerFor, reviewOf (ad-hoc)
+    Pipeline.kt         salesPipeline(), policyBook() (async)
+  src/test/kotlin/harbor/
+    StartJourneyTest.kt
+    CoverageAndRidersTest.kt
+    BuyPolicyTest.kt
+    AdHocScreenTest.kt
+    AsyncBookTest.kt
+    PostgresHarborTest.kt</pre>
+    <p>
+      Seed the product, riders, rate card, and campaign in test
+      <code>given(…)</code> and in a small <code>Seed</code> decision used by
+      the demo app. Do not hide seed in SQL.
+    </p>
+
+    <h2 id="out">11. Out of scope</h2>
+    <ul>
+      <li>Medical underwriting, labs, MIB, e-signature, replacement forms.</li>
+      <li>Payment capture, billing retries, lapse, reinstatement.</li>
+      <li>Illustrations, tax, state variation, producer of record.</li>
+      <li>Synchronous projections (not in the library).</li>
+      <li>Multi-tenant partitioning (one store for the sample).</li>
+    </ul>
+    <p>
+      If the journey needs a “save for later” email, that is an automation on
+      <code>JourneyStarted</code> + time, not a new consistency boundary.
+    </p>
+
+    <footer>
+      Spec for the DCB Kotlin library sample. Companion to the enrolment module.
+      Implement against <code>dcb-core</code> APIs as of the async-projection work:
+      <code>decision</code>, <code>requiring</code>, <code>considering</code>,
+      <code>ask</code>, <code>project</code>, <code>projectAsync</code>,
+      <code>catchUpTo</code>, Postgres event store.
+    </footer>
+  </main>
+</body>
+</html>
